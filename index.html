@@ -97,7 +97,7 @@ return list.map(i=>{const on=x.cur[kind[0]+i.id+"_"+day]!==undefined;let n=0;for
 let st="";if(kind==="rew"){const need=i.p-x.c.bk[day];st=`<span class="st ${need<=0?"yes":""}">${need<=0?"🎉 TAIP! Gali gauti":"Trūksta "+need}</span>`}
 return `<button class="row it ${on?"on "+kind:""}" data-a="tog" data-k="${kind}" data-i="${i.id}"><span class="nm">${esc(i.t)}${n>1?` <span class="sub">×${n} šią savaitę</span>`:""}</span><span class="pt">${kind==="good"&&i.p>0?"+":""}${i.p}</span><span class="ck">${on?sym:""}</span>${st}</button>`}).join("")}
 function vSetup(){return `<div class="card c"><h2>🔗 Sinchronizacija <button class="x" style="margin:0" data-a="back2">Atgal</button></h2><p>Nebūtina. Jei norite, kad lentelę matytų keli telefonai (pvz., seneliai), reikia savo nemokamos Firebase duomenų bazės (vieną kartą, apie 5 min.). Dabartiniai duomenys bus perkelti į ją:</p><ol><li>Atidarykite <b>console.firebase.google.com</b>, prisijunkite su Google paskyra, spauskite <b>Create a project</b>, įveskite pavadinimą, išjunkite Analytics ir spauskite Create.</li><li>Meniu: <b>Build → Realtime Database → Create Database</b>. Pasirinkite vietą ir <b>locked mode</b>, tada Enable.</li><li>Skirtuke <b>Rules</b> ištrinkite viską, įklijuokite taisykles ir spauskite <b>Publish</b>.</li><li>Skirtuke <b>Data</b> nukopijuokite viršuje rodomą adresą (https://…firebasedatabase.app) ir įklijuokite čia.</li></ol><pre>${esc(RULES)}</pre><button class="act" data-a="copyrules">Kopijuoti taisykles</button><input id="dburl" placeholder="https://….firebasedatabase.app"><button class="act go" data-a="connect">Prisijungti</button><p class="sub" style="margin-top:10px">Jau turite pakvietimo nuorodą? Tiesiog atidarykite ją šiame telefone.</p></div>`}
-const vFirst=()=>`<div class="card c"><h2>👋 Sveiki!</h2><p>Įrašykite vaikų vardus:</p><input id="k1" placeholder="Pirmo vaiko vardas"><input id="k2" placeholder="Antro vaiko vardas (nebūtina)"><button class="act go" data-a="create">Pradėti</button><p class="sub" style="margin-top:10px">Duomenys saugomi tik šiame telefone. Atsarginę kopiją galėsite išsisaugoti nustatymuose.</p></div>`;
+const vFirst0=()=>`<div class="card c"><h2>👋 Sveiki!</h2><p>Įrašykite vaikų vardus:</p><input id="k1" placeholder="Pirmo vaiko vardas"><input id="k2" placeholder="Antro vaiko vardas (nebūtina)"><button class="act go" data-a="create">Pradėti</button><p class="sub" style="margin-top:10px">Duomenys saugomi tik šiame telefone. Atsarginę kopiją galėsite išsisaugoti nustatymuose.</p></div>`;
 function vMain(ks){const k=ks.find(x=>x.id===kid),Ls=L()||defL(),c=calc(k),cur=(D.t&&D.t[kid]&&D.t[kid][wk])||{},x={c,cur};
 const lv=[...Ls.lv].sort((a,b)=>a.f-b.f);let lc=lv[0],nx=null;lv.forEach((l,i)=>{if(c.week>=l.f){lc=l;nx=lv[i+1]||null}});
 const pr=nx?Math.max(0,Math.min(100,(c.week-lc.f)/(nx.f-lc.f)*100)):100,goal=Ls.rew.find(r=>r.id===k.g),gp=goal?Math.max(0,Math.min(100,c.bank/goal.p*100)):0;
@@ -143,6 +143,8 @@ if(!confirm("Atkūrus kopiją, dabartiniai duomenys bus pakeisti. Tęsti?"))retu
 D=j.data;cache();if(cfg.u){pend++;try{await fetch(cfg.u+"/f/"+cfg.c+".json",{method:"PUT",body:JSON.stringify(D)})}finally{pend--;last=Date.now()}}
 kid=null;view="main";setBK();render();toast("Duomenys atkurti")}catch(e){toast("Tai nėra tinkamas kopijos failas")}}
 document.addEventListener("change",e=>{if(e.target.id==="rf")restore(e.target.files[0])});
+const vFirst=()=>vFirst0()+`<div class="card c"><h2>🔗 Jau naudojate kitame telefone?</h2><p class="sub">Įklijuokite pakvietimo nuorodą ir pamatysite tuos pačius vaikus.</p><input id="lnk" placeholder="https://…#cfg=…"><button class="act" data-a="join">Prisijungti</button></div>`;
+function join(){const m=($("lnk").value||"").match(/cfg=([^&\s]+)/);try{cfg=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));localStorage.setItem(KEY,JSON.stringify(cfg));D={};cache();loaded=false;render();pull()}catch(e){cfg={u:"",c:"local"};toast("Neteisinga nuoroda")}}
 async function share(){const link=location.href.split("#")[0]+"#cfg="+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))));
 try{if(navigator.share){await navigator.share({title:"Žvaigždučių lentelė",url:link});return}}catch(e){return}
 try{await navigator.clipboard.writeText(link);toast("Nuoroda nukopijuota")}catch(e){prompt("Nukopijuokite nuorodą:",link)}}
@@ -171,6 +173,7 @@ put("c",{neg:1});ns.forEach((n,i)=>put("k/k"+uid(),{n,o:i,s:0,g:"",L:JSON.string
 else if(a==="share")share();
 else if(a==="off"){cfg={u:"",c:"local"};loaded=true;try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}history.replaceState(null,"",location.pathname);view="main";render();toast("Duomenys liko šiame telefone")}
 else if(a==="connect")connect();
+else if(a==="join")join();
 else if(a==="local"){cfg={u:"",c:"local"};localStorage.setItem(KEY,JSON.stringify(cfg));loaded=true;render()}
 else if(a==="copyl"){const src=$("cps").value,sk=D.k[src],tk=D.k[kid];if(sk&&tk&&confirm("Pakeisti vaiko „"+tk.n+"“ sąrašus vaiko „"+sk.n+"“ sąrašais?")){const Ls=L(src);if(Ls)saveL(Ls)}}
 else if(a==="backup")backup();
