@@ -3,6 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Žvaigždutės">
+<meta name="theme-color" content="#1f9d6b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Žvaigždučių lentelė</title>
 <style>
 :root{--bg:#eaf6ee;--card:#fff;--tx:#153a2c;--mut:#5d7f70;--acc:#1f9d6b;--sun:#ffc83d;--bad:#ef5a4c;--line:#d3e6da;--onsun:#3a2a00;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -50,7 +52,7 @@ pre{background:var(--bg);border-radius:10px;padding:10px;font-size:12px;white-sp
 </style></head>
 <body><div id="app"></div><div id="toast"></div>
 <script>
-const KEY="zl.cfg",CK="zl.cache",SEL="zl.kid",DAYS=["Pir","Antr","Treč","Ketv","Penkt","Šešt","Sekm"],MOODS=["🤩","🙂","😐","🙁"];
+const KEY="zl.cfg",CK="zl.cache",SEL="zl.kid",BK="zl.bk",DAYS=["Pir","Antr","Treč","Ketv","Penkt","Šešt","Sekm"],MOODS=["🤩","🙂","😐","🙁"];
 const RULES='{"rules":{"f":{"$code":{".read":true,".write":true}}}}';
 const $=s=>document.getElementById(s),uid=()=>Math.random().toString(36).slice(2,8)+"x";
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -65,6 +67,8 @@ lv:[{f:0,t:"🥚 Mažas dinozauro kiaušinis"},{f:40,t:"🦎 Mažasis plėšrūn
 let cfg=null,D={},loaded=false,view="main",wk=monday(),kid=null,conf="",pend=0,last=0,day=(new Date().getDay()+6)%7;
 try{cfg=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 try{const m=location.hash.match(/cfg=([^&]+)/);if(m){cfg=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));localStorage.setItem(KEY,JSON.stringify(cfg))}}catch(e){}
+if(!cfg){cfg={u:"",c:"local"};try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}}
+try{if(!localStorage.getItem(BK))localStorage.setItem(BK,Date.now())}catch(e){}
 try{D=JSON.parse(localStorage.getItem(CK))||{}}catch(e){}
 try{kid=localStorage.getItem(SEL)}catch(e){}
 const cache=()=>{try{localStorage.setItem(CK,JSON.stringify(D))}catch(e){}};
@@ -77,7 +81,8 @@ async function pull(){if(!cfg||!cfg.u||pend||Date.now()-last<2500)return;
 try{const r=await fetch(cfg.u+"/f/"+cfg.c+".json");if(!r.ok)throw 0;const j=(await r.json())||{};if(pend||Date.now()-last<2500)return;
 const ch=JSON.stringify(j)!==JSON.stringify(D)||!loaded;D=j;cache();loaded=true;if(ch&&!busy())render()}catch(e){}}
 const kids=()=>Object.entries(D.k||{}).map(([id,k])=>({id,...k})).sort((a,b)=>a.o-b.o);
-const L=()=>{try{return JSON.parse(D.c.L)}catch(e){return null}};
+const L=(id=kid)=>{try{return JSON.parse(D.k[id].L)}catch(e){}try{return JSON.parse(D.c.L)}catch(e){return null}};
+const saveL=Ls=>put(`k/${kid}/L`,JSON.stringify(Ls));
 function calc(k){const T=(D.t&&D.t[k.id])||{},neg=!D.c||D.c.neg!==0,cw=monday(),ws=[...new Set([...Object.keys(T),wk,cw])].sort();let cum=+k.s||0,r={H:[]};
 for(const w of ws){const x=T[w]||{},sc=[],sp=[],gd=[],od=[];let g1=0,o1=0;
 for(let d=0;d<7;d++){let g=0,o=0,s=0;for(const q in x){if(+q.slice(-1)!==d)continue;const v=+x[q];if(q[0]==="g")g+=v;else if(q[0]==="o")o+=v;else s+=v}
@@ -91,15 +96,16 @@ if(!x)return list.map(i=>`<div class="row"><input data-f="item" data-l="${kind}"
 return list.map(i=>{const on=x.cur[kind[0]+i.id+"_"+day]!==undefined;let n=0;for(let d=0;d<7;d++)if(x.cur[kind[0]+i.id+"_"+d]!==undefined)n++;
 let st="";if(kind==="rew"){const need=i.p-x.c.bk[day];st=`<span class="st ${need<=0?"yes":""}">${need<=0?"🎉 TAIP! Gali gauti":"Trūksta "+need}</span>`}
 return `<button class="row it ${on?"on "+kind:""}" data-a="tog" data-k="${kind}" data-i="${i.id}"><span class="nm">${esc(i.t)}${n>1?` <span class="sub">×${n} šią savaitę</span>`:""}</span><span class="pt">${kind==="good"&&i.p>0?"+":""}${i.p}</span><span class="ck">${on?sym:""}</span>${st}</button>`}).join("")}
-function vSetup(){return `<div class="card c"><h2>🦖 Žvaigždučių lentelė</h2><p>Kad lentelę matytų keli telefonai, reikia nemokamos Firebase duomenų bazės (vieną kartą, apie 5 min.):</p><ol><li>Atidarykite <b>console.firebase.google.com</b>, prisijunkite su Google paskyra, spauskite <b>Create a project</b>, įveskite pavadinimą, išjunkite Analytics ir spauskite Create.</li><li>Meniu: <b>Build → Realtime Database → Create Database</b>. Pasirinkite vietą ir <b>locked mode</b>, tada Enable.</li><li>Skirtuke <b>Rules</b> ištrinkite viską, įklijuokite taisykles ir spauskite <b>Publish</b>.</li><li>Skirtuke <b>Data</b> nukopijuokite viršuje rodomą adresą (https://…firebasedatabase.app) ir įklijuokite čia.</li></ol><pre>${esc(RULES)}</pre><button class="act" data-a="copyrules">Kopijuoti taisykles</button><input id="dburl" placeholder="https://….firebasedatabase.app"><button class="act go" data-a="connect">Prisijungti</button><button class="add" data-a="local">Naudoti tik šiame telefone</button><p class="sub" style="margin-top:10px">Jau turite pakvietimo nuorodą? Tiesiog atidarykite ją šiame telefone.</p></div>`}
-const vFirst=()=>`<div class="card c"><h2>👋 Sveiki!</h2><p>Įrašykite vaikų vardus:</p><input id="k1" placeholder="Pirmo vaiko vardas"><input id="k2" placeholder="Antro vaiko vardas (nebūtina)"><button class="act go" data-a="create">Pradėti</button></div>`;
+function vSetup(){return `<div class="card c"><h2>🔗 Sinchronizacija <button class="x" style="margin:0" data-a="back2">Atgal</button></h2><p>Nebūtina. Jei norite, kad lentelę matytų keli telefonai (pvz., seneliai), reikia savo nemokamos Firebase duomenų bazės (vieną kartą, apie 5 min.). Dabartiniai duomenys bus perkelti į ją:</p><ol><li>Atidarykite <b>console.firebase.google.com</b>, prisijunkite su Google paskyra, spauskite <b>Create a project</b>, įveskite pavadinimą, išjunkite Analytics ir spauskite Create.</li><li>Meniu: <b>Build → Realtime Database → Create Database</b>. Pasirinkite vietą ir <b>locked mode</b>, tada Enable.</li><li>Skirtuke <b>Rules</b> ištrinkite viską, įklijuokite taisykles ir spauskite <b>Publish</b>.</li><li>Skirtuke <b>Data</b> nukopijuokite viršuje rodomą adresą (https://…firebasedatabase.app) ir įklijuokite čia.</li></ol><pre>${esc(RULES)}</pre><button class="act" data-a="copyrules">Kopijuoti taisykles</button><input id="dburl" placeholder="https://….firebasedatabase.app"><button class="act go" data-a="connect">Prisijungti</button><p class="sub" style="margin-top:10px">Jau turite pakvietimo nuorodą? Tiesiog atidarykite ją šiame telefone.</p></div>`}
+const vFirst=()=>`<div class="card c"><h2>👋 Sveiki!</h2><p>Įrašykite vaikų vardus:</p><input id="k1" placeholder="Pirmo vaiko vardas"><input id="k2" placeholder="Antro vaiko vardas (nebūtina)"><button class="act go" data-a="create">Pradėti</button><p class="sub" style="margin-top:10px">Duomenys saugomi tik šiame telefone. Atsarginę kopiją galėsite išsisaugoti nustatymuose.</p></div>`;
 function vMain(ks){const k=ks.find(x=>x.id===kid),Ls=L()||defL(),c=calc(k),cur=(D.t&&D.t[kid]&&D.t[kid][wk])||{},x={c,cur};
 const lv=[...Ls.lv].sort((a,b)=>a.f-b.f);let lc=lv[0],nx=null;lv.forEach((l,i)=>{if(c.week>=l.f){lc=l;nx=lv[i+1]||null}});
 const pr=nx?Math.max(0,Math.min(100,(c.week-lc.f)/(nx.f-lc.f)*100)):100,goal=Ls.rew.find(r=>r.id===k.g),gp=goal?Math.max(0,Math.min(100,c.bank/goal.p*100)):0;
+const nag=!cfg.u&&bkAge()>30*864e5?`<div class="card"><p>💾 Jau daugiau nei mėnuo, kai darėte atsarginę kopiją.</p><button class="act go" style="margin:0" data-a="backup">Išsaugoti kopiją</button></div>`:"";
 const mood=D.m&&D.m[kid]&&D.m[kid][wk]&&D.m[kid][wk]["d"+day];
 return `<div class="tabs">${ks.map(q=>`<button class="${q.id===kid?"sel":""}" data-a="kid" data-i="${q.id}">${esc(q.n)}</button>`).join("")}<button class="gear" data-a="settings">⚙️</button></div>
 <div class="wk"><button data-a="prev">◀</button><span>🗓 ${fmt(wk)} – ${fmt(addDays(wk,6))}</span><button data-a="next" ${wk>=monday()?"disabled":""}>▶</button></div>
-<div class="card"><div class="lvl">${esc(lc.t)}</div><div class="bar"><i style="width:${pr}%"></i></div><div class="sub" style="margin-top:4px">${nx?`Iki „${esc(nx.t)}“ trūksta ${nx.f-c.week} sav. taškų`:"Pasiektas aukščiausias lygis!"}</div>
+${nag}<div class="card"><div class="lvl">${esc(lc.t)}</div><div class="bar"><i style="width:${pr}%"></i></div><div class="sub" style="margin-top:4px">${nx?`Iki „${esc(nx.t)}“ trūksta ${nx.f-c.week} sav. taškų`:"Pasiektas aukščiausias lygis!"}</div>
 <div class="stats"><div><b>${c.carry}</b><span>🎒 Perkelta</span></div><div><b>${c.G}</b><span>🌟 Geri</span></div><div><b>${c.O}</b><span>😬 Ups</span></div><div><b>${c.spent}</b><span>🎁 Išleista</span></div><div class="bank"><b>${c.bank}</b><span>💰 Bankas</span></div></div>
 <div style="margin-top:12px" class="sub">🎯 Taupau:</div><select data-f="goal"><option value="">— nepasirinkta —</option>${Ls.rew.map(r=>`<option value="${r.id}" ${r.id===k.g?"selected":""}>${esc(r.t)} (${r.p})</option>`).join("")}</select><div class="bar"><i style="width:${gp}%"></i></div></div>
 <div class="days">${DAYS.map((n,d)=>`<button class="${d===day?"sel":""}" data-a="day" data-d="${d}">${n}<b>${+addDays(wk,d).slice(8)}</b>${c.bk[d]}💰</button>`).join("")}</div>
@@ -108,26 +114,42 @@ return `<div class="tabs">${ks.map(q=>`<button class="${q.id===kid?"sel":""}" da
 <div class="card"><div class="tot" style="font-size:18px"><span>🏅 Dienos rezultatas</span><span>${c.sc[day]}</span></div><h2 style="margin-top:12px">😊 Kokia buvo diena?</h2><div class="moods">${MOODS.map(m=>`<button class="${mood===m?"on":""}" data-a="mood" data-m="${m}">${m}</button>`).join("")}</div></div>
 <div class="card"><h2>🎁 Prizų parduotuvė <span class="sub">paspausk, kad išleistum</span></h2>${rows(Ls.rew,"rew",x)}<div class="tot"><span>🎁 Išleista šiandien</span><span>${c.sp[day]}</span></div><div class="tot"><span>💰 Bankas dienos pabaigoje</span><span>${c.bk[day]}</span></div></div>
 <div class="card"><h2>📜 Istorija</h2>${c.H.filter(h=>h.has).reverse().map(h=>`<button class="row it ${h.w===wk?"on":""}" data-a="goweek" data-w="${h.w}"><span class="nm">📅 ${fmt(h.w)} – ${fmt(addDays(h.w,6))}</span><span class="pt">⭐${h.week} 🎁${h.spent} 💰${h.bank}</span></button>`).join("")}</div>`}
-function vSet(ks){const Ls=L()||defL(),neg=!D.c||D.c.neg!==0,cw=conf;
+function vSet(ks){const Ls=L()||defL(),neg=!D.c||D.c.neg!==0,cw=conf,kn=esc((ks.find(q=>q.id===kid)||{}).n||"");
 return `<div class="card"><h2>⚙️ Nustatymai <button class="x" style="margin:0" data-a="back">✔ Atgal</button></h2>
 <p class="sub">Vaikai (vardas ir pradinis bankas)</p>${ks.map(k=>`<div class="row"><input data-f="kn" data-i="${k.id}" value="${esc(k.n)}"><input class="num" type="number" inputmode="numeric" data-f="ks" data-i="${k.id}" value="${+k.s||0}"><button class="x" style="margin:0" data-a="delkid" data-i="${k.id}">${cw==="delkid"+k.id?"Ištrinti?":"✕"}</button></div>`).join("")}<button class="add" data-a="addkid">＋ Pridėti vaiką</button>
 <label class="row" style="margin-top:10px"><input type="checkbox" data-f="neg" ${neg?"checked":""}><span class="nm">Dienos rezultatas gali būti neigiamas (minusai pereina į kitas dienas ir savaites)</span></label></div>
-<div class="card"><h2>🌈 Geri darbai</h2>${rows(Ls.good,"good")}</div><div class="card"><h2>😬 Ups</h2>${rows(Ls.oops,"oops")}</div><div class="card"><h2>🎁 Prizai</h2>${rows(Ls.rew,"rew")}</div>
-<div class="card"><h2>🏆 Lygiai <span class="sub">pagal savaitės rezultatą</span></h2>${Ls.lv.map((l,i)=>`<div class="row"><input class="num" type="number" data-f="lvl" data-k="${i}" data-p="f" value="${l.f}"><input data-f="lvl" data-k="${i}" data-p="t" value="${esc(l.t)}"></div>`).join("")}</div>
-<div class="card"><h2>🔗 Sinchronizacija</h2>${cfg.u?`<p class="sub">Duomenys saugomi bendroje duomenų bazėje. Nuorodą atidarę kitame telefone, seneliai ar kiti šeimos nariai matys tą pačią lentelę.</p><button class="act go" data-a="share">Siųsti pakvietimo nuorodą</button>`:`<p class="sub">Duomenys saugomi tik šiame telefone.</p>`}<button class="act" data-a="off">${cw==="off"?"Paspauskite dar kartą":"Atjungti šį telefoną"}</button></div>`}
+<div class="card"><h2>📝 Sąrašai vaikui</h2><div class="tabs" style="position:static;padding:0">${ks.map(q=>`<button class="${q.id===kid?"sel":""}" data-a="kid" data-i="${q.id}">${esc(q.n)}</button>`).join("")}</div><p class="sub" style="margin:10px 0 0">Kiekvieno vaiko darbai, elgesys, prizai, taškai ir lygiai gali skirtis. Žemiau redaguojami pasirinkto vaiko sąrašai.</p>${ks.length>1?`<select id="cps">${ks.filter(q=>q.id!==kid).map(q=>`<option value="${q.id}">${esc(q.n)}</option>`).join("")}</select><button class="act" data-a="copyl">Nukopijuoti sąrašus iš pasirinkto vaiko</button>`:""}</div>
+<div class="card"><h2>🌈 Geri darbai · ${kn}</h2>${rows(Ls.good,"good")}</div><div class="card"><h2>😬 Ups · ${kn}</h2>${rows(Ls.oops,"oops")}</div><div class="card"><h2>🎁 Prizai · ${kn}</h2>${rows(Ls.rew,"rew")}</div>
+<div class="card"><h2>🏆 Lygiai · ${kn}</h2>${Ls.lv.map((l,i)=>`<div class="row"><input class="num" type="number" data-f="lvl" data-k="${i}" data-p="f" value="${l.f}"><input data-f="lvl" data-k="${i}" data-p="t" value="${esc(l.t)}"></div>`).join("")}</div>
+<div class="card"><h2>💾 Atsarginė kopija</h2><p class="sub">${cfg.u?"Duomenys saugomi bendroje duomenų bazėje. Kopiją vis tiek verta kartais išsisaugoti.":"Duomenys saugomi tik šiame telefone. Pakeitus telefoną ar išvalius naršyklę jie dings, todėl kartkartėmis išsisaugokite kopiją."}</p><button class="act go" data-a="backup">Išsaugoti kopiją</button><button class="act" data-a="restore">Atkurti iš kopijos</button><input type="file" id="rf" accept=".json,application/json" hidden></div>
+${instCard()}
+<div class="card"><h2>🔗 Sinchronizacija <span class="sub">nebūtina</span></h2>${cfg.u?`<p class="sub">Duomenys saugomi bendroje duomenų bazėje. Nuorodą atidarę kitame telefone, seneliai ar kiti šeimos nariai matys tą pačią lentelę.</p><button class="act go" data-a="share">Siųsti pakvietimo nuorodą</button><button class="act" data-a="off">Atjungti (duomenys lieka šiame telefone)</button>`:`<p class="sub">Norite, kad lentelę matytų ir seneliai ar antras tėvas? Prijunkite savo nemokamą duomenų bazę.</p><button class="act" data-a="sync">Prijungti sinchronizaciją</button>`}</div>`}
 function render(){const a=$("app");
-if(!cfg){a.innerHTML=vSetup();return}
-if(!loaded){a.innerHTML=`<div class="card">Jungiamasi…<button class="act" data-a="off">Pakeisti nustatymus</button></div>`;return}
+if(!cfg||view==="sync"){a.innerHTML=vSetup();return}
+if(!loaded){a.innerHTML=`<div class="card">Jungiamasi…<button class="act" data-a="off">Naudoti tik šiame telefone</button></div>`;return}
 const ks=kids();if(!ks.length){a.innerHTML=vFirst();return}
 if(!ks.find(k=>k.id===kid))kid=ks[0].id;
 a.innerHTML=view==="settings"?vSet(ks):vMain(ks)}
+let defP=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();defP=e;if(!busy())render()});
+const standalone=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+const instCard=()=>standalone()?"":`<div class="card"><h2>📲 Įdiegti programėlę</h2>${defP?`<button class="act go" style="margin:0" data-a="install">Įdiegti</button>`:`<p class="sub" style="margin:0">iPhone: Safari apačioje spauskite Dalintis, tada „Pridėti prie pagrindinio ekrano“. Android: Chrome meniu (⋮) → „Įdiegti programėlę“.</p>`}</div>`;
+const bkAge=()=>{try{const t=+localStorage.getItem(BK);return t?Date.now()-t:0}catch(e){return 0}};
+const setBK=()=>{try{localStorage.setItem(BK,Date.now())}catch(e){}};
+async function backup(){const name="zvaigzdutes-kopija-"+new Date().toISOString().slice(0,10)+".json",blob=new Blob([JSON.stringify({app:"zvaigzdutes",v:1,data:D})],{type:"application/json"});
+try{const f=new File([blob],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});setBK();render();return}}catch(e){if(e&&e.name==="AbortError")return}
+const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setBK();toast("Kopija išsaugota");render()}
+async function restore(f){if(!f)return;try{const j=JSON.parse(await f.text());if(!j||j.app!=="zvaigzdutes"||!j.data||!j.data.k)throw 0;
+if(!confirm("Atkūrus kopiją, dabartiniai duomenys bus pakeisti. Tęsti?"))return;
+D=j.data;cache();if(cfg.u){pend++;try{await fetch(cfg.u+"/f/"+cfg.c+".json",{method:"PUT",body:JSON.stringify(D)})}finally{pend--;last=Date.now()}}
+kid=null;view="main";setBK();render();toast("Duomenys atkurti")}catch(e){toast("Tai nėra tinkamas kopijos failas")}}
+document.addEventListener("change",e=>{if(e.target.id==="rf")restore(e.target.files[0])});
 async function share(){const link=location.href.split("#")[0]+"#cfg="+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))));
 try{if(navigator.share){await navigator.share({title:"Žvaigždučių lentelė",url:link});return}}catch(e){return}
 try{await navigator.clipboard.writeText(link);toast("Nuoroda nukopijuota")}catch(e){prompt("Nukopijuokite nuorodą:",link)}}
 async function connect(){const u=$("dburl").value.trim().replace(/\/+$/,"");if(!/^https:\/\/.+/.test(u)){toast("Įklijuokite adresą, prasidedantį https://");return}
 const c=Array.from({length:14},()=>"abcdefghjkmnpqrstuvwxyz23456789"[Math.random()*31|0]).join("");
-try{const r=await fetch(u+"/f/"+c+".json");if(!r.ok)throw 0}catch(e){toast("Nepavyko prisijungti. Patikrinkite adresą ir taisykles.");return}
-cfg={u,c};D={};localStorage.setItem(KEY,JSON.stringify(cfg));loaded=false;render();pull()}
+try{const r=await fetch(u+"/f/"+c+".json");if(!r.ok)throw 0;if(D.k){const w=await fetch(u+"/f/"+c+".json",{method:"PUT",body:JSON.stringify(D)});if(!w.ok)throw 0}}catch(e){toast("Nepavyko prisijungti. Patikrinkite adresą ir taisykles.");return}
+cfg={u,c};localStorage.setItem(KEY,JSON.stringify(cfg));view="main";loaded=false;render();pull()}
 function ask(key){if(conf!==key){conf=key;render();return false}conf="";return true}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,Q=b.dataset;const was=conf;conf="";
 const k=kids().find(x=>x.id===kid);
@@ -141,15 +163,21 @@ else if(a==="back"){view="main";render()}
 else if(a==="mood"){const m=D.m&&D.m[kid]&&D.m[kid][wk]&&D.m[kid][wk]["d"+day];put(`m/${kid}/${wk}/d${day}`,m===Q.m?null:Q.m)}
 else if(a==="tog"){const key=Q.k[0]+Q.i+"_"+day,path=`t/${kid}/${wk}/${key}`,c=calc(k),cur=(D.t&&D.t[kid]&&D.t[kid][wk])||{};
 if(cur[key]!==undefined)put(path,null);else{const it=L()[Q.k].find(i=>i.id===Q.i);if(Q.k==="rew"&&c.bk[day]<it.p){toast("Dar nepakanka taškų, trūksta "+(it.p-c.bk[day]));return}put(path,+it.p)}}
-else if(a==="add"||a==="del"){const Ls=L();if(a==="add")Ls[Q.l].push(G("⭐ Naujas",Q.l==="oops"?-1:Q.l==="rew"?10:1));else Ls[Q.l]=Ls[Q.l].filter(i=>i.id!==Q.i);put("c/L",JSON.stringify(Ls))}
-else if(a==="addkid"){const n=Object.keys(D.k||{}).length;put("k/k"+uid(),{n:"Vaikas",o:n,s:0,g:""})}
+else if(a==="add"||a==="del"){const Ls=L();if(a==="add")Ls[Q.l].push(G("⭐ Naujas",Q.l==="oops"?-1:Q.l==="rew"?10:1));else Ls[Q.l]=Ls[Q.l].filter(i=>i.id!==Q.i);saveL(Ls)}
+else if(a==="addkid"){const n=Object.keys(D.k||{}).length;put("k/k"+uid(),{n:"Vaikas",o:n,s:0,g:"",L:JSON.stringify(defL())})}
 else if(a==="delkid"){if(was!=="delkid"+Q.i){conf="delkid"+Q.i;render();return}put("k/"+Q.i,null);put("t/"+Q.i,null);put("m/"+Q.i,null)}
 else if(a==="create"){const ns=[$("k1").value.trim(),$("k2").value.trim()].filter(Boolean);if(!ns.length){toast("Įrašykite bent vieną vardą");return}
-put("c",{L:JSON.stringify(defL()),neg:1});ns.forEach((n,i)=>put("k/k"+uid(),{n,o:i,s:0,g:""}))}
+put("c",{neg:1});ns.forEach((n,i)=>put("k/k"+uid(),{n,o:i,s:0,g:"",L:JSON.stringify(defL())}))}
 else if(a==="share")share();
-else if(a==="off"){if(was!=="off"){conf="off";render();return}cfg=null;D={};loaded=false;try{localStorage.removeItem(KEY);localStorage.removeItem(CK)}catch(e){}history.replaceState(null,"",location.pathname);view="main";render()}
+else if(a==="off"){cfg={u:"",c:"local"};loaded=true;try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}history.replaceState(null,"",location.pathname);view="main";render();toast("Duomenys liko šiame telefone")}
 else if(a==="connect")connect();
 else if(a==="local"){cfg={u:"",c:"local"};localStorage.setItem(KEY,JSON.stringify(cfg));loaded=true;render()}
+else if(a==="copyl"){const src=$("cps").value,sk=D.k[src],tk=D.k[kid];if(sk&&tk&&confirm("Pakeisti vaiko „"+tk.n+"“ sąrašus vaiko „"+sk.n+"“ sąrašais?")){const Ls=L(src);if(Ls)saveL(Ls)}}
+else if(a==="backup")backup();
+else if(a==="restore")$("rf").click();
+else if(a==="sync"){view="sync";render();window.scrollTo(0,0)}
+else if(a==="back2"){view="settings";render()}
+else if(a==="install"&&defP){defP.prompt();defP=null;render()}
 else if(a==="copyrules"){navigator.clipboard.writeText(RULES).then(()=>toast("Nukopijuota"),()=>toast("Nepavyko nukopijuoti"))}});
 document.addEventListener("change",e=>{const el=e.target,Q=el.dataset,f=Q.f;if(!f)return;
 if(f==="goal")put(`k/${kid}/g`,el.value);
@@ -157,7 +185,10 @@ else if(f==="kn")put(`k/${Q.i}/n`,el.value.trim()||"Vaikas");
 else if(f==="ks")put(`k/${Q.i}/s`,+el.value||0);
 else if(f==="neg")put("c/neg",el.checked?1:0);
 else if(f==="item"||f==="lvl"){const Ls=L(),it=f==="item"?Ls[Q.l].find(i=>i.id===Q.i):Ls.lv[+Q.k];
-if(Q.p==="p"){let v=+el.value||0;if(Q.l==="oops")v=-Math.abs(v);it.p=v}else if(Q.p==="f")it.f=+el.value||0;else it.t=el.value;put("c/L",JSON.stringify(Ls))}});
+if(Q.p==="p"){let v=+el.value||0;if(Q.l==="oops")v=-Math.abs(v);it.p=v}else if(Q.p==="f")it.f=+el.value||0;else it.t=el.value;saveL(Ls)}});
 if(cfg&&!cfg.u)loaded=true;
+(function(){try{const base=new URL(".",location.href).href,m={name:"Žvaigždučių lentelė",short_name:"Žvaigždutės",id:location.pathname,start_url:location.href,scope:base,display:"standalone",background_color:"#eaf6ee",theme_color:"#1f9d6b",lang:"lt",icons:[{src:base+"icon-192.png",sizes:"192x192",type:"image/png",purpose:"any"},{src:base+"icon-512.png",sizes:"512x512",type:"image/png",purpose:"any"},{src:base+"icon-512.png",sizes:"512x512",type:"image/png",purpose:"maskable"}]};
+const l=document.createElement("link");l.rel="manifest";l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));document.head.appendChild(l)}catch(e){}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{})})();
 render();pull();setInterval(pull,8000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});
 </script></body></html>
